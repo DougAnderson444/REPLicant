@@ -7,12 +7,19 @@
 		{
 			id: 0,
 			name: "App",
-			type: "svelte",
+			type: "svx",
 			source: `<script>
   import Component from './Component1.svelte';
 <\/script>
 
 <Component />
+
+\`\`\`js
+// a comment
+import something from 'somewhere'
+// why doesn't this highlight?
+\`\`\`
+
 	`,
 		},
 		{
