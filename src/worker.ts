@@ -6,6 +6,9 @@ import * as rollup from "rollup/dist/es/rollup.browser.js";
 const CDN_URL = "https://cdn.jsdelivr.net/npm";
 importScripts(`${CDN_URL}/svelte/compiler.js`);
 
+// import the mdsvex worker
+importScripts(`${CDN_URL}/mdsvex/dist/mdsvex.js`)
+
 const component_lookup: Map<string, Component> = new Map();
 
 async function fetch_package(url: string): Promise<string> {
@@ -24,7 +27,7 @@ self.addEventListener(
 		generate_lookup(event.data);
 
 		const bundle = await rollup.rollup({
-			input: "./App.svelte",
+			input: "./App.svx",
 			plugins: [
 				{
 					name: "repl-plugin",
@@ -48,6 +51,9 @@ self.addEventListener(
 
 						// local repl components
 						if (component_lookup.has(importee)) return importee;
+
+						// importing from a URL
+						if (importee.startsWith('http:') || importee.startsWith('https:')) { return importee }
 
 						// relative imports from a remote package
 						if (importee.startsWith("."))
@@ -82,7 +88,21 @@ self.addEventListener(
 					transform(code: string, id: string) {
 						// our only transform is to compile svelte components
 						//@ts-ignore
-						if (/.*\.svelte/.test(id)) return svelte.compile(code).js.code;
+						if (!/\.svelte$|\.svx$/.test(id)) return null
+
+						let preprocessPromise
+
+						if (/\.svx$/.test(id)) {
+							preprocessPromise = self.mdsvex
+							.mdsvex()
+							.markup({ content: code, filename: id })
+						} else {
+							preprocessPromise = Promise.resolve({ code })
+						}
+
+						return preprocessPromise.then(({ code: v }) => {
+							return svelte.compile(v).js.code;
+						})
 					},
 				},
 			],
